@@ -3,7 +3,7 @@ extern crate rocket;
 use rocket::State;
 
 #[get("/<key>/<value>")]
-fn hello(key: String, value: String, db: State<sled::Db>) -> String {
+fn put(key: String, value: String, db: State<sled::Db>) -> String {
     let k: Vec<u8> = bincode::serialize(&key).unwrap();
     let v: Vec<u8> = bincode::serialize(&value).unwrap();
     db.insert(k, v).expect("could not save");
@@ -12,19 +12,17 @@ fn hello(key: String, value: String, db: State<sled::Db>) -> String {
 
 #[get("/")]
 fn all(db: State<sled::Db>) -> String {
-    let prefix: &[u8] = &[];
-    let mut r = db.scan_prefix(prefix);
+    let mut r = db.scan_prefix(&[]);
     let mut output = vec![];
 
     while let Some(Ok((key, val))) = r.next() {
         let key: String = bincode::deserialize(&key[..]).unwrap();
         let val: String = bincode::deserialize(&val[..]).unwrap();
 
-        output.push(key);
-        output.push(val);
+        output.push(format!("{}: {}", key, val));
     }
 
-    format!("{:?}", output)
+    output.join("\n")
 }
 
 #[launch]
@@ -33,5 +31,5 @@ fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .manage(db)
         .mount("/", routes![all])
-        .mount("/hello", routes![hello])
+        .mount("/put", routes![put])
 }
